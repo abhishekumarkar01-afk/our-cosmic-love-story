@@ -6,6 +6,9 @@ import { ConstellationName } from "@/components/cinematic/ConstellationName";
 import { LoveLetter } from "@/components/cinematic/LoveLetter";
 import { ProposalScene } from "@/components/cinematic/ProposalScene";
 import { SunriseEnding } from "@/components/cinematic/SunriseEnding";
+import { NameWhisper } from "@/components/cinematic/NameWhisper";
+import { HandwrittenSignature } from "@/components/cinematic/HandwrittenSignature";
+import { StarReveal } from "@/components/cinematic/StarReveal";
 
 /**
  * Phase tuning — these are deliberately ordered so the galaxy camera
