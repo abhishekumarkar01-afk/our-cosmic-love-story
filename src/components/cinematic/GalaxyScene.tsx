@@ -268,7 +268,8 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
     };
 
     // ---------- Animate ----------
-    const clock = new THREE.Clock();
+    const startTime = performance.now();
+    let smoothedPhase = 0;
     let frame = 0;
     let raf = 0;
 
@@ -279,7 +280,8 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
     };
     window.addEventListener("resize", onResize);
 
-    let mouseX = 0, mouseY = 0;
+    let mouseX = 0,
+      mouseY = 0;
     const onMove = (e: MouseEvent) => {
       mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
       mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
@@ -289,46 +291,75 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
     const animate = () => {
       raf = requestAnimationFrame(animate);
       frame++;
-      const t = clock.getElapsedTime();
-      const p = phaseRef.current; // 0 -> 1 -> 2
+      const t = (performance.now() - startTime) / 1000;
 
-      // camera cinematic drift + parallax
-      camera.position.x += (mouseX * 8 - camera.position.x) * 0.02;
-      camera.position.y += (-mouseY * 5 - camera.position.y) * 0.02;
-      camera.position.z = -t * 6; // forward drift
-      camera.lookAt(0, 0, camera.position.z - 100);
+      // ease toward target phase for buttery transitions between scenes
+      const targetPhase = phaseRef.current;
+      smoothedPhase += (targetPhase - smoothedPhase) * 0.025;
+      const p = smoothedPhase; // 0 → ~2
+
+      // Continuous cinematic camera path driven by phase + slow time drift.
+      // 0.0  universe opening   — slow forward drift, far from anything
+      // 0.3  galaxy journey     — accelerating through stars
+      // 0.7  approaching Earth  — pulls back slightly to frame the planet
+      // 1.0  India landing      — banks down and zooms toward planet surface
+      // 1.3+ her world / photos — camera settles, gentle sway
+      // 2.0  sunrise            — soft rise, warm light
+      const journeyZ = -t * 4 - p * 220;
+      const landingPull = p > 0.9 ? Math.min((p - 0.9) * 1.2, 0.4) : 0;
+      const cameraTargetX = mouseX * 6 + Math.sin(t * 0.15) * 4;
+      const cameraTargetY = -mouseY * 4 + Math.cos(t * 0.1) * 2 - landingPull * 8;
+
+      camera.position.x += (cameraTargetX - camera.position.x) * 0.03;
+      camera.position.y += (cameraTargetY - camera.position.y) * 0.03;
+      camera.position.z = journeyZ;
+
+      // Bank slightly during the Earth approach — feels like a flight path
+      const bank = THREE.MathUtils.clamp((p - 0.6) * 0.4, 0, 0.18);
+      camera.rotation.z = -bank * 0.5;
+
+      // Look-at point shifts down toward Earth as we land
+      const lookY = -landingPull * 12;
+      camera.lookAt(camera.position.x * 0.3, lookY, camera.position.z - 100);
 
       // star rotation
       stars1.rotation.y = t * 0.005;
       stars2.rotation.y = -t * 0.008;
       stars3.rotation.y = t * 0.012;
 
-      // nebula slow drift
+      // nebula slow drift — fade out as we approach Earth
       nebulae.forEach((n, i) => {
-        n.material.opacity = (0.3 + Math.sin(t * 0.3 + i) * 0.1) * (1 - p * 0.6);
+        n.material.opacity = (0.3 + Math.sin(t * 0.3 + i) * 0.1) * Math.max(0, 1 - p * 0.55);
       });
 
-      // dust drift
+      // dust drift — speed scales with phase to imply forward motion
+      const dustSpeed = 0.6 + p * 1.4;
       const dpos = dust.geometry.attributes.position as THREE.BufferAttribute;
       for (let i = 0; i < dustCount; i++) {
         const idx = i * 3 + 2;
-        dpos.array[idx] = (dpos.array[idx] as number) + 0.6;
+        dpos.array[idx] = (dpos.array[idx] as number) + dustSpeed;
         if ((dpos.array[idx] as number) > 200) {
           dpos.array[idx] = -800;
         }
       }
       dpos.needsUpdate = true;
 
-      // planet appears in phase 1
-      const targetScale = p > 0.3 ? Math.min((p - 0.3) * 2.2, 1) : 0;
-      planetGroup.scale.setScalar(planetGroup.scale.x + (targetScale - planetGroup.scale.x) * 0.04);
+      // Earth grows in smoothly from phase 0.45, large at landing (1.0)
+      const earthGrow = THREE.MathUtils.clamp((p - 0.45) * 1.6, 0, 1);
+      const targetScale = earthGrow * (1 + Math.max(0, p - 1) * 1.2);
+      planetGroup.scale.setScalar(
+        planetGroup.scale.x + (targetScale - planetGroup.scale.x) * 0.05,
+      );
       planet.rotation.y += 0.0015;
-      planetGroup.position.z = -350 + camera.position.z + (p > 0.5 ? -(p - 0.5) * 200 : 0);
+      // Earth tracks just ahead of the camera so it feels like we're flying toward it
+      const earthOffsetZ = -180 - Math.max(0, 1 - p) * 200 + Math.max(0, p - 1) * 80;
+      planetGroup.position.z = camera.position.z + earthOffsetZ;
+      planetGroup.position.y = -10 - landingPull * 6;
 
       // sunrise warmth in phase 2
       const warmTarget = Math.max(0, (p - 1.5) * 2);
       warmLight.intensity += (warmTarget * 1.5 - warmLight.intensity) * 0.04;
-      sunLight.intensity += ((1.6 - warmTarget * 1.2) - sunLight.intensity) * 0.04;
+      sunLight.intensity += (1.6 - warmTarget * 1.2 - sunLight.intensity) * 0.04;
       scene.fog!.color.setRGB(
         0.02 + warmTarget * 0.6,
         0.015 + warmTarget * 0.35,
