@@ -29,14 +29,18 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "Dddv" },
+      { name: "description", content: "A cinematic, interactive website that tells a personalized cosmic love story using uploaded photos and music." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "Dddv" },
+      { property: "og:description", content: "A cinematic, interactive website that tells a personalized cosmic love story using uploaded photos and music." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Dddv" },
+      { name: "twitter:description", content: "A cinematic, interactive website that tells a personalized cosmic love story using uploaded photos and music." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f5729969-c9a2-45c5-a42c-79cdca47f13d/id-preview-7da0c937--ecf35261-1b7d-437b-bea5-c62b715a3ddf.lovable.app-1777137757994.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f5729969-c9a2-45c5-a42c-79cdca47f13d/id-preview-7da0c937--ecf35261-1b7d-437b-bea5-c62b715a3ddf.lovable.app-1777137757994.png" },
     ],
     links: [
       {
