@@ -396,7 +396,7 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
   return (
     <div
       ref={mountRef}
-      className="fixed inset-0 -z-10"
+      className="fixed inset-0 -z-10 pointer-events-none"
       style={{
         background:
           "radial-gradient(ellipse at center, oklch(0.06 0.05 280) 0%, oklch(0.02 0.02 270) 70%, oklch(0 0 0) 100%)",
