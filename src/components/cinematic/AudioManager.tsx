@@ -96,18 +96,35 @@ export function AudioManager({ activeTrack, cosmicSrc, romanticSrc, onReplay }: 
   }, [masterVol, muted, started, activeTrack]);
 
   const handleStart = () => {
-    setStarted(true);
-    const c = cosmicRef.current;
-    if (c) {
-      c.volume = 0;
-      c.play().catch(() => {});
-      fadeTo("cosmic", clamp(masterVol) * 0.85, 3000);
-    }
+    // Always start at the very top so the cosmic track is the first thing heard.
+    window.scrollTo({ top: 0, behavior: "auto" });
+    onReplay?.();
+    requestAnimationFrame(() => {
+      setStarted(true);
+      const c = cosmicRef.current;
+      const r = romanticRef.current;
+      if (r) {
+        try { r.pause(); r.currentTime = 0; r.volume = 0; } catch {}
+      }
+      if (c) {
+        try { c.currentTime = 0; c.volume = 0; } catch {}
+        c.play().catch(() => {});
+        fadeTo("cosmic", clamp(masterVol) * 0.85, 3000);
+      }
+    });
   };
 
   const handleReplay = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     onReplay?.();
+    const c = cosmicRef.current;
+    const r = romanticRef.current;
+    if (r) { try { r.pause(); r.currentTime = 0; r.volume = 0; } catch {} }
+    if (c) {
+      try { c.currentTime = 0; c.volume = 0; } catch {}
+      c.play().catch(() => {});
+      fadeTo("cosmic", clamp(masterVol) * 0.85, 2000);
+    }
   };
 
   return (
