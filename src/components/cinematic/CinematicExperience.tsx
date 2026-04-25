@@ -41,7 +41,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
   const scenes: SceneSection[] = [
     {
       id: 0,
-      height: "200vh",
+      height: "130vh",
       phase: 0.0,
       track: 1,
       render: (a) => (
@@ -64,7 +64,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 1,
-      height: "150vh",
+      height: "110vh",
       phase: 0.35,
       track: 1,
       render: (a) => (
@@ -79,7 +79,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 2,
-      height: "150vh",
+      height: "120vh",
       phase: 0.75,
       track: 1,
       render: (a) => (
@@ -96,7 +96,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 3,
-      height: "120vh",
+      height: "110vh",
       phase: 1.15,
       track: 2,
       render: (a) => (
@@ -112,7 +112,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 4,
-      height: "300vh",
+      height: "220vh",
       phase: 1.25,
       track: 2,
       render: (a) => (
@@ -123,7 +123,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 5,
-      height: "130vh",
+      height: "110vh",
       phase: 1.1,
       track: 2,
       render: (a) => (
@@ -141,7 +141,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 6,
-      height: "220vh",
+      height: "170vh",
       phase: 1.2,
       track: 2,
       render: (a) => (
@@ -152,14 +152,14 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 7,
-      height: "150vh",
+      height: "120vh",
       phase: 1.4,
       track: 2,
       render: (a) => <ProposalScene active={a} />,
     },
     {
       id: 8,
-      height: "160vh",
+      height: "130vh",
       phase: 2.0,
       track: 2,
       render: (a) => (
