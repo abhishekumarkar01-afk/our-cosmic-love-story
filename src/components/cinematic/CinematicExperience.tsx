@@ -6,6 +6,9 @@ import { ConstellationName } from "@/components/cinematic/ConstellationName";
 import { LoveLetter } from "@/components/cinematic/LoveLetter";
 import { ProposalScene } from "@/components/cinematic/ProposalScene";
 import { SunriseEnding } from "@/components/cinematic/SunriseEnding";
+import { NameWhisper } from "@/components/cinematic/NameWhisper";
+import { HandwrittenSignature } from "@/components/cinematic/HandwrittenSignature";
+import { StarReveal } from "@/components/cinematic/StarReveal";
 
 /**
  * Phase tuning — these are deliberately ordered so the galaxy camera
@@ -41,24 +44,14 @@ export function CinematicExperience({ name = "My Love" }: Props) {
   const scenes: SceneSection[] = [
     {
       id: 0,
-      height: "130vh",
+      height: "150vh",
       phase: 0.0,
       track: 1,
       render: (a) => (
         <div
-          className={`text-center max-w-3xl px-6 transition-opacity duration-[1500ms] ${
-            a ? "opacity-100" : "opacity-0"
-          }`}
+          className={`transition-opacity duration-[1500ms] ${a ? "opacity-100" : "opacity-0"}`}
         >
-          <p className="font-serif italic text-2xl md:text-4xl text-foreground/90 glow-text-cool leading-relaxed mb-12 animate-fade-glow">
-            In an endless universe of billions of stars...
-          </p>
-          <p
-            className="font-serif italic text-3xl md:text-5xl text-cosmic-gold glow-text leading-relaxed animate-fade-glow"
-            style={{ animationDelay: "2.5s", animationFillMode: "both", opacity: 0 }}
-          >
-            My heart still found only one.
-          </p>
+          <NameWhisper name={name} active={a} />
         </div>
       ),
     },
@@ -167,6 +160,25 @@ export function CinematicExperience({ name = "My Love" }: Props) {
           <SunriseEnding active={a} />
         </div>
       ),
+    },
+    {
+      id: 9,
+      height: "120vh",
+      phase: 2.0,
+      track: 2,
+      render: (a) => (
+        <HandwrittenSignature
+          active={a}
+          text={`Tumhare liye, hamesha — ${name}`}
+        />
+      ),
+    },
+    {
+      id: 10,
+      height: "180vh",
+      phase: 2.0,
+      track: 2,
+      render: (a) => <StarReveal active={a} name={name} />,
     },
   ];
 
