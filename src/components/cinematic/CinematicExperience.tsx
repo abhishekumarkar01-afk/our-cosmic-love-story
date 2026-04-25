@@ -161,6 +161,25 @@ export function CinematicExperience({ name = "My Love" }: Props) {
         </div>
       ),
     },
+    {
+      id: 9,
+      height: "120vh",
+      phase: 2.0,
+      track: 2,
+      render: (a) => (
+        <HandwrittenSignature
+          active={a}
+          text={`Tumhare liye, hamesha — ${name}`}
+        />
+      ),
+    },
+    {
+      id: 10,
+      height: "180vh",
+      phase: 2.0,
+      track: 2,
+      render: (a) => <StarReveal active={a} name={name} />,
+    },
   ];
 
   useEffect(() => {
