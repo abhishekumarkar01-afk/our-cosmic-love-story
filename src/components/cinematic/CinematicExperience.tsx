@@ -44,24 +44,14 @@ export function CinematicExperience({ name = "My Love" }: Props) {
   const scenes: SceneSection[] = [
     {
       id: 0,
-      height: "130vh",
+      height: "150vh",
       phase: 0.0,
       track: 1,
       render: (a) => (
         <div
-          className={`text-center max-w-3xl px-6 transition-opacity duration-[1500ms] ${
-            a ? "opacity-100" : "opacity-0"
-          }`}
+          className={`transition-opacity duration-[1500ms] ${a ? "opacity-100" : "opacity-0"}`}
         >
-          <p className="font-serif italic text-2xl md:text-4xl text-foreground/90 glow-text-cool leading-relaxed mb-12 animate-fade-glow">
-            In an endless universe of billions of stars...
-          </p>
-          <p
-            className="font-serif italic text-3xl md:text-5xl text-cosmic-gold glow-text leading-relaxed animate-fade-glow"
-            style={{ animationDelay: "2.5s", animationFillMode: "both", opacity: 0 }}
-          >
-            My heart still found only one.
-          </p>
+          <NameWhisper name={name} active={a} />
         </div>
       ),
     },
