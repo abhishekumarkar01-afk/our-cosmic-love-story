@@ -12,21 +12,59 @@ interface AudioManagerProps {
 const clamp = (v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v));
 
 export function AudioManager({ activeTrack, cosmicSrc, romanticSrc, onReplay }: AudioManagerProps) {
-  const cosmicRef = useRef<HTMLAudioElement>(null);
-  const romanticRef = useRef<HTMLAudioElement>(null);
+  const cosmicRef = useRef<HTMLAudioElement | null>(null);
+  const romanticRef = useRef<HTMLAudioElement | null>(null);
   const fadeRafRef = useRef<{ cosmic?: number; romantic?: number }>({});
   const [muted, setMuted] = useState(false);
   const [masterVol, setMasterVol] = useState(0.7);
   const [started, setStarted] = useState(false);
-  const [missing, setMissing] = useState<string[]>([]);
 
-  // verify files are reachable
+  // Create the audio elements ONCE, lazily, so we control them imperatively.
+  // Mobile browsers (iOS Safari especially) require .load() + .play() to be
+  // invoked synchronously inside the user-gesture handler.
+  const ensureAudioElements = () => {
+    if (!cosmicRef.current) {
+      const a = new Audio();
+      a.src = cosmicSrc;
+      a.loop = true;
+      a.preload = "auto";
+      a.crossOrigin = "anonymous";
+      a.setAttribute("playsinline", "");
+      a.setAttribute("webkit-playsinline", "");
+      a.volume = 0;
+      cosmicRef.current = a;
+    }
+    if (!romanticRef.current) {
+      const a = new Audio();
+      a.src = romanticSrc;
+      a.loop = true;
+      a.preload = "auto";
+      a.crossOrigin = "anonymous";
+      a.setAttribute("playsinline", "");
+      a.setAttribute("webkit-playsinline", "");
+      a.volume = 0;
+      romanticRef.current = a;
+    }
+  };
+
+  // Cleanup on unmount
   useEffect(() => {
-    Promise.all([
-      fetch(cosmicSrc, { method: "HEAD" }).then((r) => (r.ok ? null : "cosmic")).catch(() => "cosmic"),
-      fetch(romanticSrc, { method: "HEAD" }).then((r) => (r.ok ? null : "romantic")).catch(() => "romantic"),
-    ]).then((res) => setMissing(res.filter(Boolean) as string[]));
-  }, [cosmicSrc, romanticSrc]);
+    return () => {
+      [cosmicRef.current, romanticRef.current].forEach((el) => {
+        if (el) {
+          try {
+            el.pause();
+            el.src = "";
+            el.load();
+          } catch {
+            /* ignore */
+          }
+        }
+      });
+      if (fadeRafRef.current.cosmic) cancelAnimationFrame(fadeRafRef.current.cosmic);
+      if (fadeRafRef.current.romantic) cancelAnimationFrame(fadeRafRef.current.romantic);
+    };
+  }, []);
 
   const fadeTo = (which: "cosmic" | "romantic", target: number, durationMs = 2200) => {
     const el = which === "cosmic" ? cosmicRef.current : romanticRef.current;
@@ -48,13 +86,17 @@ export function AudioManager({ activeTrack, cosmicSrc, romanticSrc, onReplay }: 
       if (k < 1) {
         fadeRafRef.current[which] = requestAnimationFrame(step);
       } else if (safeTarget === 0) {
-        el.pause();
+        try {
+          el.pause();
+        } catch {
+          /* ignore */
+        }
       }
     };
     fadeRafRef.current[which] = requestAnimationFrame(step);
   };
 
-  // crossfade on track change
+  // crossfade on track change (only after user has started)
   useEffect(() => {
     if (!started) return;
     const cosmic = cosmicRef.current;
@@ -77,7 +119,7 @@ export function AudioManager({ activeTrack, cosmicSrc, romanticSrc, onReplay }: 
     }
   }, [activeTrack, started]);
 
-  // master volume / mute changes — adjust live without killing playback
+  // master volume / mute changes
   useEffect(() => {
     if (!started) return;
     const cosmic = cosmicRef.current;
@@ -95,47 +137,86 @@ export function AudioManager({ activeTrack, cosmicSrc, romanticSrc, onReplay }: 
     }
   }, [masterVol, muted, started, activeTrack]);
 
+  // CRITICAL: must be invoked synchronously from a real user gesture.
+  // No awaits, no rAF before .play() — mobile autoplay policies require it.
   const handleStart = () => {
-    // Always start at the very top so the cosmic track is the first thing heard.
-    window.scrollTo({ top: 0, behavior: "auto" });
+    ensureAudioElements();
+
+    const c = cosmicRef.current!;
+    const r = romanticRef.current!;
+
+    // Prime BOTH elements inside the gesture so a later silent-switch to the
+    // romantic track also works on iOS (each <audio> needs at least one
+    // user-initiated play() to be unlocked).
+    try {
+      r.muted = true;
+      r.volume = 0;
+      const rPlay = r.play();
+      if (rPlay && typeof rPlay.then === "function") {
+        rPlay
+          .then(() => {
+            try {
+              r.pause();
+              r.currentTime = 0;
+              r.muted = false;
+            } catch {}
+          })
+          .catch(() => {
+            try {
+              r.muted = false;
+            } catch {}
+          });
+      }
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      c.currentTime = 0;
+      c.volume = 0;
+      c.muted = false;
+      c.play().catch(() => {});
+    } catch {
+      /* ignore */
+    }
+
+    setStarted(true);
     onReplay?.();
-    requestAnimationFrame(() => {
-      setStarted(true);
-      const c = cosmicRef.current;
-      const r = romanticRef.current;
-      if (r) {
-        try { r.pause(); r.currentTime = 0; r.volume = 0; } catch {}
-      }
-      if (c) {
-        try { c.currentTime = 0; c.volume = 0; } catch {}
-        c.play().catch(() => {});
-        fadeTo("cosmic", clamp(masterVol) * 0.85, 3000);
-      }
-    });
+    // Scroll to top after state flip — safe outside the gesture
+    window.scrollTo({ top: 0, behavior: "auto" });
+    fadeTo("cosmic", clamp(masterVol) * 0.85, 3000);
   };
 
   const handleReplay = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    onReplay?.();
-    const c = cosmicRef.current;
-    const r = romanticRef.current;
-    if (r) { try { r.pause(); r.currentTime = 0; r.volume = 0; } catch {} }
-    if (c) {
-      try { c.currentTime = 0; c.volume = 0; } catch {}
+    ensureAudioElements();
+    const c = cosmicRef.current!;
+    const r = romanticRef.current!;
+    try {
+      r.pause();
+      r.currentTime = 0;
+      r.volume = 0;
+    } catch {}
+    try {
+      c.currentTime = 0;
+      c.volume = 0;
       c.play().catch(() => {});
-      fadeTo("cosmic", clamp(masterVol) * 0.85, 2000);
-    }
+    } catch {}
+    onReplay?.();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    fadeTo("cosmic", clamp(masterVol) * 0.85, 2000);
   };
 
   return (
     <>
-      <audio ref={cosmicRef} src={cosmicSrc} loop preload="auto" />
-      <audio ref={romanticRef} src={romanticSrc} loop preload="auto" />
-
       {!started && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-cosmic-deep/95 backdrop-blur-xl cursor-pointer"
           onClick={handleStart}
+          onTouchEnd={(e) => {
+            // Ensure mobile taps trigger inside the gesture window
+            e.preventDefault();
+            handleStart();
+          }}
         >
           <div className="text-center px-8 animate-fade-glow">
             <div className="mb-8 text-cosmic-gold/80 font-serif italic text-sm tracking-[0.4em] uppercase">
@@ -147,8 +228,14 @@ export function AudioManager({ activeTrack, cosmicSrc, romanticSrc, onReplay }: 
               <span className="font-script text-cosmic-gold glow-text">My Universe</span>
             </h1>
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                handleStart();
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 handleStart();
               }}
               className="mt-6 px-10 py-4 rounded-full glass-card text-cosmic-gold font-serif text-lg tracking-widest uppercase animate-pulse-glow hover:scale-105 transition-transform"
@@ -158,11 +245,6 @@ export function AudioManager({ activeTrack, cosmicSrc, romanticSrc, onReplay }: 
             <p className="mt-8 text-xs text-foreground/50 tracking-widest">
               Best with sound · scroll slowly · headphones recommended
             </p>
-            {missing.length > 0 && (
-              <p className="mt-4 text-xs text-cosmic-rose/80 italic">
-                Note: {missing.join(", ")} track missing — visuals will still play.
-              </p>
-            )}
           </div>
         </div>
       )}
