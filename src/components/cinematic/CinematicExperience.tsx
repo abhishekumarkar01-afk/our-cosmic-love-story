@@ -44,7 +44,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
   const scenes: SceneSection[] = [
     {
       id: 0,
-      height: "150vh",
+      height: "110vh",
       phase: 0.0,
       track: 1,
       render: (a) => (
@@ -57,7 +57,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 1,
-      height: "110vh",
+      height: "90vh",
       phase: 0.35,
       track: 1,
       render: (a) => (
@@ -72,7 +72,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 2,
-      height: "120vh",
+      height: "100vh",
       phase: 0.75,
       track: 1,
       render: (a) => (
@@ -89,7 +89,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 3,
-      height: "110vh",
+      height: "90vh",
       phase: 1.15,
       track: 2,
       render: (a) => (
@@ -105,7 +105,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 4,
-      height: "220vh",
+      height: "180vh",
       phase: 1.25,
       track: 2,
       render: (a) => (
@@ -116,7 +116,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 5,
-      height: "110vh",
+      height: "90vh",
       phase: 1.1,
       track: 2,
       render: (a) => (
@@ -134,7 +134,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 6,
-      height: "170vh",
+      height: "140vh",
       phase: 1.2,
       track: 2,
       render: (a) => (
@@ -145,14 +145,14 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 7,
-      height: "120vh",
+      height: "95vh",
       phase: 1.4,
       track: 2,
       render: (a) => <ProposalScene active={a} />,
     },
     {
       id: 8,
-      height: "130vh",
+      height: "100vh",
       phase: 2.0,
       track: 2,
       render: (a) => (
@@ -163,7 +163,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 9,
-      height: "120vh",
+      height: "95vh",
       phase: 2.0,
       track: 2,
       render: (a) => (
@@ -175,7 +175,7 @@ export function CinematicExperience({ name = "My Love" }: Props) {
     },
     {
       id: 10,
-      height: "180vh",
+      height: "130vh",
       phase: 2.0,
       track: 2,
       render: (a) => <StarReveal active={a} name={name} />,

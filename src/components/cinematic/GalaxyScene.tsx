@@ -7,9 +7,9 @@ interface GalaxySceneProps {
 }
 
 /**
- * Volumetric layered galaxy: thousands of stars across 3 depth layers,
- * nebula clouds via additive sprites, drifting dust, distant planet,
- * cinematic camera drift. Phase morphs scene from cosmic -> earth -> sunrise.
+ * Volumetric layered galaxy. Optimized for low-end mobile:
+ * particle counts, pixel ratio, sphere segments and nebula sprites
+ * are all reduced when a small or low-DPI viewport is detected.
  */
 export function GalaxyScene({ phase }: GalaxySceneProps) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -23,6 +23,23 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
     const mount = mountRef.current;
     if (!mount) return;
 
+    // ---------- Mobile / perf detection ----------
+    const isMobile =
+      typeof window !== "undefined" &&
+      (window.innerWidth < 768 ||
+        /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent));
+    const cores = (navigator as Navigator & { hardwareConcurrency?: number }).hardwareConcurrency ?? 4;
+    const isLowEnd = isMobile && cores <= 4;
+
+    // Tunable counts
+    const STAR1 = isLowEnd ? 700 : isMobile ? 1200 : 2500;
+    const STAR2 = isLowEnd ? 400 : isMobile ? 600 : 1200;
+    const STAR3 = isLowEnd ? 150 : isMobile ? 220 : 400;
+    const NEBULA_COUNT = isLowEnd ? 8 : isMobile ? 12 : 22;
+    const DUST_COUNT = isLowEnd ? 180 : isMobile ? 300 : 600;
+    const PLANET_SEG = isMobile ? 32 : 64;
+    const PIXEL_RATIO = Math.min(window.devicePixelRatio, isLowEnd ? 1 : isMobile ? 1.25 : 2);
+
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x05030f, 0.0008);
 
@@ -35,18 +52,18 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
     camera.position.set(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: !isMobile,
       alpha: true,
       powerPreference: "high-performance",
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(PIXEL_RATIO);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000, 0);
     mount.appendChild(renderer.domElement);
 
     // ---------- Star sprite (soft glow) ----------
     const makeStarTexture = (color: string) => {
-      const size = 128;
+      const size = 64;
       const c = document.createElement("canvas");
       c.width = c.height = size;
       const ctx = c.getContext("2d")!;
@@ -66,8 +83,14 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
     const starTexBlue = makeStarTexture("rgba(170,200,255,1)");
     const starTexGold = makeStarTexture("rgba(255,220,160,1)");
 
-    // ---------- Layer 1: tiny background stars ----------
-    const makeStarLayer = (count: number, radius: number, size: number, tex: THREE.Texture, opacity: number) => {
+    // ---------- Star layers ----------
+    const makeStarLayer = (
+      count: number,
+      radius: number,
+      size: number,
+      tex: THREE.Texture,
+      opacity: number,
+    ) => {
       const geom = new THREE.BufferGeometry();
       const pos = new Float32Array(count * 3);
       for (let i = 0; i < count; i++) {
@@ -91,14 +114,14 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
       return new THREE.Points(geom, mat);
     };
 
-    const stars1 = makeStarLayer(2500, 1500, 2.2, starTexWhite, 0.9);
-    const stars2 = makeStarLayer(1200, 900, 4, starTexBlue, 0.85);
-    const stars3 = makeStarLayer(400, 500, 8, starTexGold, 0.95);
+    const stars1 = makeStarLayer(STAR1, 1500, 2.2, starTexWhite, 0.9);
+    const stars2 = makeStarLayer(STAR2, 900, 4, starTexBlue, 0.85);
+    const stars3 = makeStarLayer(STAR3, 500, 8, starTexGold, 0.95);
     scene.add(stars1, stars2, stars3);
 
-    // ---------- Nebula clouds (sprites) ----------
+    // ---------- Nebula clouds (sprites) — reuse shared textures ----------
     const makeNebulaTex = (hue: string) => {
-      const size = 512;
+      const size = 256;
       const c = document.createElement("canvas");
       c.width = c.height = size;
       const ctx = c.getContext("2d")!;
@@ -118,11 +141,13 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
       "rgba(200,120,255,A)",
       "rgba(255,180,120,A)",
     ];
+    // Pre-generate one texture per color, reuse across sprites
+    const nebulaTextures = nebulaColors.map(makeNebulaTex);
+
     const nebulae: THREE.Sprite[] = [];
-    for (let i = 0; i < 22; i++) {
-      const tex = makeNebulaTex(nebulaColors[i % nebulaColors.length]);
+    for (let i = 0; i < NEBULA_COUNT; i++) {
       const mat = new THREE.SpriteMaterial({
-        map: tex,
+        map: nebulaTextures[i % nebulaTextures.length],
         transparent: true,
         opacity: 0.35 + Math.random() * 0.3,
         blending: THREE.AdditiveBlending,
@@ -145,9 +170,8 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
 
     // ---------- Cosmic dust ----------
     const dustGeom = new THREE.BufferGeometry();
-    const dustCount = 600;
-    const dustPos = new Float32Array(dustCount * 3);
-    for (let i = 0; i < dustCount; i++) {
+    const dustPos = new Float32Array(DUST_COUNT * 3);
+    for (let i = 0; i < DUST_COUNT; i++) {
       dustPos[i * 3] = (Math.random() - 0.5) * 600;
       dustPos[i * 3 + 1] = (Math.random() - 0.5) * 400;
       dustPos[i * 3 + 2] = -Math.random() * 800;
@@ -168,7 +192,7 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
 
     // ---------- Distant planet (Earth-ish) ----------
     const planetGroup = new THREE.Group();
-    const planetGeom = new THREE.SphereGeometry(40, 64, 64);
+    const planetGeom = new THREE.SphereGeometry(40, PLANET_SEG, PLANET_SEG);
 
     const earthCanvas = document.createElement("canvas");
     earthCanvas.width = 512;
@@ -180,7 +204,6 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
     grad.addColorStop(1, "#0f2547");
     ec.fillStyle = grad;
     ec.fillRect(0, 0, 512, 256);
-    // continents
     ec.fillStyle = "#3a6b3a";
     for (let i = 0; i < 40; i++) {
       ec.beginPath();
@@ -195,7 +218,6 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
       );
       ec.fill();
     }
-    // city lights tiny dots
     ec.fillStyle = "rgba(255,220,140,0.9)";
     for (let i = 0; i < 80; i++) {
       ec.fillRect(Math.random() * 512, Math.random() * 256, 1.5, 1.5);
@@ -213,8 +235,7 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
     const planet = new THREE.Mesh(planetGeom, planetMat);
     planetGroup.add(planet);
 
-    // atmosphere glow
-    const atmoGeom = new THREE.SphereGeometry(43, 64, 64);
+    const atmoGeom = new THREE.SphereGeometry(43, PLANET_SEG, PLANET_SEG);
     const atmoMat = new THREE.ShaderMaterial({
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -247,17 +268,17 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
     scene.add(sunLight);
     scene.add(new THREE.AmbientLight(0x1a1a3a, 0.4));
 
-    // sunrise warm light (off until phase 2)
     const warmLight = new THREE.DirectionalLight(0xffb070, 0);
     warmLight.position.set(-100, -50, 200);
     scene.add(warmLight);
 
-    // ---------- Shooting stars ----------
+    // ---------- Shooting stars (skip on low-end) ----------
     const shootingStars: { mesh: THREE.Mesh; vel: THREE.Vector3; life: number }[] = [];
+    const shootGeom = new THREE.SphereGeometry(0.4, 6, 6);
     const spawnShooting = () => {
-      const geom = new THREE.SphereGeometry(0.4, 8, 8);
-      const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const m = new THREE.Mesh(geom, mat);
+      if (isLowEnd) return;
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true });
+      const m = new THREE.Mesh(shootGeom, mat);
       m.position.set((Math.random() - 0.5) * 400, 100 + Math.random() * 60, -200 - Math.random() * 200);
       shootingStars.push({
         mesh: m,
@@ -272,6 +293,8 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
     let smoothedPhase = 0;
     let frame = 0;
     let raf = 0;
+    let lastT = performance.now();
+    const FRAME_BUDGET = isMobile ? 1000 / 30 : 0; // cap ~30fps on mobile
 
     const onResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
@@ -286,25 +309,34 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
       mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
       mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
     };
-    window.addEventListener("mousemove", onMove);
+    if (!isMobile) window.addEventListener("mousemove", onMove);
+
+    // Pause when tab hidden
+    let visible = true;
+    const onVis = () => {
+      visible = !document.hidden;
+      if (visible) {
+        lastT = performance.now();
+        animate();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
 
     const animate = () => {
+      if (!visible) return;
       raf = requestAnimationFrame(animate);
-      frame++;
-      const t = (performance.now() - startTime) / 1000;
 
-      // ease toward target phase for buttery transitions between scenes
+      const now = performance.now();
+      if (FRAME_BUDGET && now - lastT < FRAME_BUDGET) return;
+      lastT = now;
+
+      frame++;
+      const t = (now - startTime) / 1000;
+
       const targetPhase = phaseRef.current;
       smoothedPhase += (targetPhase - smoothedPhase) * 0.025;
-      const p = smoothedPhase; // 0 → ~2
+      const p = smoothedPhase;
 
-      // Continuous cinematic camera path driven by phase + slow time drift.
-      // 0.0  universe opening   — slow forward drift, far from anything
-      // 0.3  galaxy journey     — accelerating through stars
-      // 0.7  approaching Earth  — pulls back slightly to frame the planet
-      // 1.0  India landing      — banks down and zooms toward planet surface
-      // 1.3+ her world / photos — camera settles, gentle sway
-      // 2.0  sunrise            — soft rise, warm light
       const journeyZ = -t * 4 - p * 220;
       const landingPull = p > 0.9 ? Math.min((p - 0.9) * 1.2, 0.4) : 0;
       const cameraTargetX = mouseX * 6 + Math.sin(t * 0.15) * 4;
@@ -314,49 +346,44 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
       camera.position.y += (cameraTargetY - camera.position.y) * 0.03;
       camera.position.z = journeyZ;
 
-      // Bank slightly during the Earth approach — feels like a flight path
       const bank = THREE.MathUtils.clamp((p - 0.6) * 0.4, 0, 0.18);
       camera.rotation.z = -bank * 0.5;
 
-      // Look-at point shifts down toward Earth as we land
       const lookY = -landingPull * 12;
       camera.lookAt(camera.position.x * 0.3, lookY, camera.position.z - 100);
 
-      // star rotation
       stars1.rotation.y = t * 0.005;
       stars2.rotation.y = -t * 0.008;
       stars3.rotation.y = t * 0.012;
 
-      // nebula slow drift — fade out as we approach Earth
-      nebulae.forEach((n, i) => {
-        n.material.opacity = (0.3 + Math.sin(t * 0.3 + i) * 0.1) * Math.max(0, 1 - p * 0.55);
-      });
+      // Update nebula opacity less often on mobile
+      if (!isMobile || frame % 3 === 0) {
+        nebulae.forEach((n, i) => {
+          n.material.opacity = (0.3 + Math.sin(t * 0.3 + i) * 0.1) * Math.max(0, 1 - p * 0.55);
+        });
+      }
 
-      // dust drift — speed scales with phase to imply forward motion
+      // dust drift
       const dustSpeed = 0.6 + p * 1.4;
       const dpos = dust.geometry.attributes.position as THREE.BufferAttribute;
-      for (let i = 0; i < dustCount; i++) {
+      const arr = dpos.array as Float32Array;
+      for (let i = 0; i < DUST_COUNT; i++) {
         const idx = i * 3 + 2;
-        dpos.array[idx] = (dpos.array[idx] as number) + dustSpeed;
-        if ((dpos.array[idx] as number) > 200) {
-          dpos.array[idx] = -800;
-        }
+        arr[idx] += dustSpeed;
+        if (arr[idx] > 200) arr[idx] = -800;
       }
       dpos.needsUpdate = true;
 
-      // Earth grows in smoothly from phase 0.45, large at landing (1.0)
       const earthGrow = THREE.MathUtils.clamp((p - 0.45) * 1.6, 0, 1);
       const targetScale = earthGrow * (1 + Math.max(0, p - 1) * 1.2);
       planetGroup.scale.setScalar(
         planetGroup.scale.x + (targetScale - planetGroup.scale.x) * 0.05,
       );
       planet.rotation.y += 0.0015;
-      // Earth tracks just ahead of the camera so it feels like we're flying toward it
       const earthOffsetZ = -180 - Math.max(0, 1 - p) * 200 + Math.max(0, p - 1) * 80;
       planetGroup.position.z = camera.position.z + earthOffsetZ;
       planetGroup.position.y = -10 - landingPull * 6;
 
-      // sunrise warmth in phase 2
       const warmTarget = Math.max(0, (p - 1.5) * 2);
       warmLight.intensity += (warmTarget * 1.5 - warmLight.intensity) * 0.04;
       sunLight.intensity += (1.6 - warmTarget * 1.2 - sunLight.intensity) * 0.04;
@@ -366,16 +393,16 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
         0.06 - warmTarget * 0.04,
       );
 
-      // shooting stars
-      if (frame % 220 === 0 && Math.random() > 0.4) spawnShooting();
+      const spawnInterval = isMobile ? 360 : 220;
+      if (frame % spawnInterval === 0 && Math.random() > 0.4) spawnShooting();
       for (let i = shootingStars.length - 1; i >= 0; i--) {
         const s = shootingStars[i];
         s.mesh.position.add(s.vel);
         s.life -= 0.012;
         (s.mesh.material as THREE.MeshBasicMaterial).opacity = s.life;
-        (s.mesh.material as THREE.MeshBasicMaterial).transparent = true;
         if (s.life <= 0) {
           scene.remove(s.mesh);
+          (s.mesh.material as THREE.MeshBasicMaterial).dispose();
           shootingStars.splice(i, 1);
         }
       }
@@ -388,8 +415,22 @@ export function GalaxyScene({ phase }: GalaxySceneProps) {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("mousemove", onMove);
+      document.removeEventListener("visibilitychange", onVis);
+      // dispose
+      [stars1, stars2, stars3, dust].forEach((p) => {
+        p.geometry.dispose();
+        (p.material as THREE.Material).dispose();
+      });
+      nebulae.forEach((n) => (n.material as THREE.Material).dispose());
+      nebulaTextures.forEach((t) => t.dispose());
+      [starTexWhite, starTexBlue, starTexGold, earthTex].forEach((t) => t.dispose());
+      planetGeom.dispose();
+      planetMat.dispose();
+      atmoGeom.dispose();
+      atmoMat.dispose();
+      shootGeom.dispose();
       renderer.dispose();
-      mount.removeChild(renderer.domElement);
+      if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
     };
   }, []);
 
