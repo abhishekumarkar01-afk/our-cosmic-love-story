@@ -29,9 +29,8 @@ export function AudioManager({ activeTrack, cosmicSrc, romanticSrc, onReplay }: 
       a.loop = true;
       a.preload = "auto";
       a.crossOrigin = "anonymous";
-      a.playsInline = true;
-      // @ts-expect-error - iOS specific
-      a.webkitPlaysInline = true;
+      a.setAttribute("playsinline", "");
+      a.setAttribute("webkit-playsinline", "");
       a.volume = 0;
       cosmicRef.current = a;
     }
@@ -41,9 +40,8 @@ export function AudioManager({ activeTrack, cosmicSrc, romanticSrc, onReplay }: 
       a.loop = true;
       a.preload = "auto";
       a.crossOrigin = "anonymous";
-      a.playsInline = true;
-      // @ts-expect-error - iOS specific
-      a.webkitPlaysInline = true;
+      a.setAttribute("playsinline", "");
+      a.setAttribute("webkit-playsinline", "");
       a.volume = 0;
       romanticRef.current = a;
     }
